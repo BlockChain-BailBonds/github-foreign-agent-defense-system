@@ -1,6 +1,37 @@
 # GitHub Foreign Agent Defense System
 
-Minimal functional architecture for controlling AI agents through an external Guardian, an operating-system sandbox, and a capability broker.
+A fail-closed reference implementation for controlling AI agents through an external Guardian, an operating-system sandbox, and a capability broker.
+
+> [!IMPORTANT]
+> “Military grade” is not a technical certification. FADS aims for explicit,
+> testable controls: deny by default, least privilege, independent OS identity
+> checks, monotonic trust degradation, authenticated sessions, and tamper-evident
+> evidence. It requires an OS sandbox to provide a real security boundary.
+
+## Implemented Controls
+
+- 256-bit random session identifiers and per-session HMAC keys
+- authenticated heartbeat counters with replay rejection
+- independent `/proc/<pid>/exe` identity and SHA-256 verification
+- one-way state degradation until a new session is created
+- broker-enforced read, atomic write, and allowlisted execution
+- canonical-path geofencing and symlink escape rejection
+- bounded I/O, execution timeouts, minimal child environments, and closed file descriptors
+- fsync'd SHA-256/HMAC hash-chained JSONL evidence
+- strict manifest loading and fail-closed validation
+- negative security tests and credential scanning in CI
+
+## Quick Verification
+
+```bash
+python -m pip install -e . pytest
+python -m pytest -q
+
+export FADS_LEDGER_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+python -m fads verify-ledger evidence/events.jsonl
+```
+
+Never commit ledger keys, session keys, credentials, or production manifests.
 
 ## Core Rule
 
@@ -78,6 +109,25 @@ container / namespaces
 ```
 
 The agent must not have a second path around the broker. If the agent receives unrestricted host shell access, unrestricted network sockets, raw credentials, or host filesystem permissions, revocation is not real.
+
+## Security Invariants
+
+1. Missing, malformed, stale, replayed, or unauthenticated input is denied.
+2. A running session can only retain or lose trust; it cannot regain trust.
+3. Every broker decision uses the Guardian's current state at operation time.
+4. The OS observation wins when an agent claim conflicts with `/proc`.
+5. Paths are resolved and checked against the workspace before use.
+6. Executable names alone are insufficient; an absolute path and SHA-256 must match.
+7. Every denial and state transition is recorded in the evidence ledger.
+8. Recovery creates a new session with new cryptographic material.
+
+## Threat Boundary
+
+The reference code handles policy decisions and brokered operations. A production
+deployment must additionally enforce namespaces, cgroups, seccomp, read-only
+mounts, dedicated UIDs, network egress denial, key isolation, and broker socket
+ownership outside the agent. Python code cannot defend against a compromised host
+kernel, Guardian administrator, firmware, or physical platform by itself.
 
 ## Guardian Loop
 

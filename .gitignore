@@ -2,3 +2,9 @@ run/
 evidence/events.log
 *.sock
 *.tmp
+*.key
+*.pem
+.env
+__pycache__/
+.pytest_cache/
+*.egg-info/
