@@ -1,0 +1,16 @@
+{
+  "agent_id": "agent-0042",
+  "identity": {
+    "executable_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "sandbox": {
+    "root": "/agents/agent-0042",
+    "workspace": "/agents/agent-0042/workspace"
+  },
+  "capabilities": ["read", "write", "execute", "spawn"],
+  "allowed_executables": {
+    "/usr/bin/python3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "heartbeat_seconds": 2,
+  "max_missed_heartbeats": 3
+}
