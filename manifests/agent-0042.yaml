@@ -1,24 +1,33 @@
+version: 1
 agent_id: agent-0042
 
 identity:
-  executable_hash: sha256:ABC123
-  model_hash: sha256:DEF456
+  executable: /usr/bin/python3
+  executable_sha256: REPLACE_WITH_FADS_HASH
+  model: null
+  model_sha256: null
 
 sandbox:
-  root: /agents/agent-0042
-  workspace: /agents/agent-0042/workspace
+  workspace: ./user-test-workspace
+  scratch: ./user-test-scratch
+  run_as_uid: null
+  readonly_binds: []
 
 allowed:
-  read: true
-  write: true
+  read_workspace: true
+  write_project: true
   execute: true
-  spawn: true
+  spawn_process: true
   network: false
-  secrets: false
+  credentials: false
+  external_tools: false
 
 allowed_executables:
-  - python3
-  - git
-  - pytest
+  - /usr/bin/python3
+  - /usr/bin/pytest
 
 heartbeat_seconds: 2
+resource_limits:
+  memory_max: 1073741824
+  tasks_max: 128
+  cpu_quota_percent: 200

@@ -1,224 +1,174 @@
-# GitHub Foreign Agent Defense System
+# GitHub Foreign Agent Defense System (FADS)
 
-A fail-closed reference implementation for controlling AI agents through an external Guardian, an operating-system sandbox, and a capability broker.
+FADS is a standalone Linux Guardian for containing AI agents and other automated processes behind an external trust decision and a capability broker.
 
-> [!IMPORTANT]
-> “Military grade” is not a technical certification. FADS aims for explicit,
-> testable controls: deny by default, least privilege, independent OS identity
-> checks, monotonic trust degradation, authenticated sessions, and tamper-evident
-> evidence. It requires an OS sandbox to provide a real security boundary.
-
-## Implemented Controls
-
-- 256-bit random session identifiers and per-session HMAC keys
-- authenticated heartbeat counters with replay rejection
-- independent `/proc/<pid>/exe` identity and SHA-256 verification
-- one-way state degradation until a new session is created
-- broker-enforced read, atomic write, and allowlisted execution
-- canonical-path geofencing and symlink escape rejection
-- bounded I/O, execution timeouts, minimal child environments, and closed file descriptors
-- fsync'd SHA-256/HMAC hash-chained JSONL evidence
-- strict manifest loading and fail-closed validation
-- negative security tests and credential scanning in CI
-
-## Quick Verification
-
-```bash
-python -m pip install -e . pytest
-python -m pytest -q
-
-export FADS_LEDGER_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
-python -m fads verify-ledger evidence/events.jsonl
-```
-
-Never commit ledger keys, session keys, credentials, or production manifests.
-
-## Core Rule
+Its runtime invariant is:
 
 ```text
 NO VERIFIED SESSION
-+ NO VALID LOCATION
++ NO VALID OS CONTEXT
 + NO CURRENT AUTHORIZATION
 = NO CAPABILITY
 ```
 
-The agent never decides whether it is trusted. A separate Guardian makes that decision.
+The agent does not decide whether it is trusted. The Guardian does.
 
-## Minimal Architecture
+## What ships in v0.1
 
-```text
-Guardian outside the boundary
-Agent inside the boundary
-Broker as the only capability path
-Evidence ledger as the memory of truth
-```
+- executable, optional model, and additional artifact SHA-256 verification before launch;
+- one fresh cryptographic session identifier per launch;
+- monotonic `TRUSTED -> RESTRICTED -> QUARANTINED -> TERMINATED` state handling;
+- a Unix-domain capability broker authenticated with `SO_PEERCRED`, cgroup membership, session ID, and heartbeat counter;
+- brokered workspace reads and atomic writes with relative-path and symlink protections;
+- brokered execution of manifest-approved executables inside a fresh hard sandbox;
+- systemd transient-unit/cgroup resource limits;
+- bubblewrap mount, user, PID, network, IPC, UTS, and cgroup namespace isolation;
+- minimal filesystem construction instead of exposing the host root;
+- read-only project workspace inside the agent sandbox plus a separate writable scratch directory;
+- no raw external network in the contained agent;
+- dropped Linux capabilities and `NoNewPrivileges`;
+- libseccomp denial of kernel/admin escape-oriented syscalls;
+- continuous manifest, policy, executable, model, and identity-artifact integrity checks;
+- cgroup process inventory for unexpected executables;
+- append-only SHA-256 evidence chaining with truncation detection and optional HMAC-authenticated chain head;
+- a privileged end-to-end user acceptance test.
 
-Only three components are required:
+FADS is application-independent. It contains a process; it does not depend on BailBonds, Mermaid, ARC, ADL, GhostBridge, KSIG, a specific model provider, or a particular agent framework.
 
-| Component | Job |
-| --- | --- |
-| Guardian | Determines who the agent is, where it is, and whether it remains trusted |
-| Sandbox | Prevents the agent from bypassing the Guardian |
-| Capability Broker | Controls what the agent can actually do |
+## Trust states
 
-The Guardian may contain the foreign-agent detector, beacon verifier, geofence monitor, policy engine, response engine, and logging system in one service.
+| Capability | Trusted | Restricted | Quarantined | Terminated |
+| --- | --- | --- | --- | --- |
+| Read workspace | yes | yes | yes | no |
+| Write project through broker | yes | no | no | no |
+| Brokered execute | yes | no | no | no |
+| Raw external network | no | no | no | no |
+| Credentials | no | no | no | no |
+| External tools | no | no | no | no |
+| Guardian evidence | Guardian only | Guardian only | Guardian only | Guardian only |
 
-## Capability Equation
+The contained process has a read-only workspace and writable scratch area. Project mutations therefore require the broker. Local computation inside the sandbox is not treated as a host capability.
 
-```text
-CAPABILITY =
-IDENTITY
-x SESSION
-x LOCATION
-x POLICY
-x CURRENT_TRUST
-```
+## Hard enforcement boundary
 
-If any required component becomes zero, capability becomes zero.
+`fads run` has no policy-only fallback. It checks for a real Linux containment stack and refuses to start the agent if required enforcement is unavailable.
 
-## Runtime States
-
-Keep the state machine small and deterministic:
-
-```text
-TRUSTED -> RESTRICTED -> QUARANTINED -> TERMINATED
-```
-
-| Capability | Trusted | Restricted | Quarantined |
-| --- | --- | --- | --- |
-| Read workspace | yes | yes | yes |
-| Write project | yes | no | no |
-| Execute | yes | limited | no |
-| Spawn process | yes | no | no |
-| Network | policy | no | no |
-| Credentials | policy | no | no |
-| External tools | policy | no | no |
-| Audit/evidence | always | always | always |
-
-## Enforcement Stack
-
-The Guardian remains outside the agent boundary. The agent boundary should include:
+The user-test backend requires:
 
 ```text
-container / namespaces
-+ cgroups
-+ read-only host mounts
-+ network namespace
-+ seccomp
-+ Unix-domain broker socket
+systemd transient service / cgroup v2
+            +
+bubblewrap namespaces and minimal mounts
+            +
+read-only project workspace
+            +
+private network namespace
+            +
+empty Linux capability set
+            +
+NoNewPrivileges
+            +
+libseccomp filter
+            +
+Unix-domain capability broker
 ```
 
-The agent must not have a second path around the broker. If the agent receives unrestricted host shell access, unrestricted network sockets, raw credentials, or host filesystem permissions, revocation is not real.
+FADS assumes the Linux kernel and Guardian/root administrative boundary are trusted. It does **not** claim to defend against a compromised kernel, hostile root administrator, or compromised Guardian administrator. See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 
-## Security Invariants
+## Install for user testing
 
-1. Missing, malformed, stale, replayed, or unauthenticated input is denied.
-2. A running session can only retain or lose trust; it cannot regain trust.
-3. Every broker decision uses the Guardian's current state at operation time.
-4. The OS observation wins when an agent claim conflicts with `/proc`.
-5. Paths are resolved and checked against the workspace before use.
-6. Executable names alone are insufficient; an absolute path and SHA-256 must match.
-7. Every denial and state transition is recorded in the evidence ledger.
-8. Recovery creates a new session with new cryptographic material.
+Ubuntu/Debian host packages:
 
-## Threat Boundary
+```bash
+sudo apt update
+sudo apt install -y bubblewrap python3 python3-pip python3-yaml
+```
 
-The reference code handles policy decisions and brokered operations. A production
-deployment must additionally enforce namespaces, cgroups, seccomp, read-only
-mounts, dedicated UIDs, network egress denial, key isolation, and broker socket
-ownership outside the agent. Python code cannot defend against a compromised host
-kernel, Guardian administrator, firmware, or physical platform by itself.
+Install the CLI from the repository:
 
-## Guardian Loop
+```bash
+python3 -m pip install --user -e .
+```
+
+Check the host from an elevated Guardian context:
+
+```bash
+sudo -E env PATH="$PATH" fads doctor
+```
+
+Every returned prerequisite must be `true` before a hard-sandbox run is accepted.
+
+## Run the acceptance test
+
+From a normal non-root shell:
+
+```bash
+./scripts/user-test.sh
+```
+
+The script elevates the Guardian with `sudo`, while the contained agent stays on the original non-root UID. It tests direct-write blocking, network isolation, a valid brokered write, deliberate trust downgrade, immediate write revocation, and evidence-chain verification.
+
+Expected result:
 
 ```text
-for session in active_agents:
-    identity_ok = verify_identity(session)
-    heartbeat_ok = verify_heartbeat(session)
-    location_ok = verify_geofence(session)
-    processes_ok = verify_process_tree(session)
-    policy_ok = verify_policy_integrity(session)
-
-    if not policy_ok:
-        terminate(session)
-    elif not identity_ok:
-        quarantine(session)
-    elif not location_ok:
-        quarantine(session)
-    elif not processes_ok:
-        restrict(session)
-    elif not heartbeat_ok:
-        restrict(session)
-    else:
-        trust(session)
-
-    capability_broker.set_state(session.agent_id, session.state)
-    audit(session)
+PASS: FADS standalone user test completed
 ```
 
-## Detection Rules
+Full procedure: [`docs/USER_TESTING.md`](docs/USER_TESTING.md).
 
-| Event | Response |
-| --- | --- |
-| Valid heartbeat | Continue |
-| Several missed heartbeats | Restricted |
-| Agent exits geofence | Quarantine |
-| Unknown child process | Restricted |
-| Unauthorized executable | Quarantine |
-| Identity/hash mismatch | Quarantine |
-| Unauthorized network request | Deny + Restricted |
-| Attempt to alter Guardian | Terminate |
-| Attempt to alter policy | Quarantine |
-| Session replay | Quarantine |
-| Valid agent restart | New session |
+## Run your own agent
 
-## Evidence Ledger
+Create a workspace and manifest. Hash the real executable and any immutable agent/model artifacts rather than editing placeholder hashes manually:
 
-Every meaningful event becomes an append-only, hash-chained record:
+```bash
+mkdir -p "$HOME/fads-agent/workspace" "$HOME/fads-agent/scratch"
 
-```json
-{
-  "time": "2026-09-11T18:40:21Z",
-  "agent": "agent-0042",
-  "session": "a8916c",
-  "pid": 4821,
-  "event": "GEOFENCE_BREACH",
-  "previous_state": "TRUSTED",
-  "new_state": "QUARANTINED",
-  "path": "/etc",
-  "action": "CAPABILITIES_REVOKED"
-}
+fads manifest-init \
+  --agent-id my-agent \
+  --executable /usr/bin/python3 \
+  --artifact "$HOME/my-agent/agent.py" \
+  --workspace "$HOME/fads-agent/workspace" \
+  --scratch "$HOME/fads-agent/scratch" \
+  --run-as-uid "$(id -u)" \
+  --out "$HOME/fads-agent/manifest.yaml"
 ```
 
-## Recommended Filesystem
+Place the immutable agent entrypoint where the sandbox can see it, for example in the workspace, then launch the Guardian as root while keeping the agent UID non-root:
+
+```bash
+cp "$HOME/my-agent/agent.py" "$HOME/fads-agent/workspace/agent.py"
+export FADS_LEDGER_HMAC_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+
+sudo -E fads run \
+  --manifest "$HOME/fads-agent/manifest.yaml" \
+  --policy ./policy.yaml \
+  --state-dir /var/lib/fads \
+  -- /usr/bin/python3 /workspace/agent.py
+```
+
+The Guardian injects only two FADS values into the contained environment:
 
 ```text
-/fads/
-  guardian/
-    guardian
-    policy.yaml
-    manifests/
-  agents/
-    agent-0042/
-      workspace/
-      scratch/
-  run/
-    broker.sock
-  evidence/
-    events.log
+FADS_SESSION_ID
+FADS_BROKER_SOCKET=/run/fads/broker.sock
 ```
 
-`guardian/`, `policy.yaml`, `manifests/`, and `evidence/` must be unwritable by the agent.
+Agents can use the small JSON protocol documented in [`docs/BROKER_PROTOCOL.md`](docs/BROKER_PROTOCOL.md).
 
-## Minimal Build Order
+## Verify evidence
 
-1. Build the Guardian daemon and immutable policy file.
-2. Launch each agent inside an isolated container/cgroup controlled by the Guardian.
-3. Add the Unix-socket heartbeat and independently verify PID, executable, ancestry, cgroup, and filesystem location.
-4. Put sensitive operations behind the Capability Broker and implement `TRUSTED`, `RESTRICTED`, `QUARANTINED`, and `TERMINATED`.
-5. Scan the sandbox process tree for unauthorized executables and automatically downgrade trust when one appears.
-6. Write every state transition and denied capability request into the hash-chained evidence ledger.
+```bash
+sudo -E fads verify-ledger --state-dir /var/lib/fads
+```
 
-## One-Sentence Summary
+When `FADS_LEDGER_HMAC_KEY` was used to create a signed ledger head, the same key is required to reopen or verify that ledger.
 
-The Guardian continuously verifies the agent, its location, and its process lineage; every meaningful capability passes through a broker, and any loss of trust immediately reduces or eliminates those capabilities.
+## Developer tests
+
+```bash
+python3 -m pip install -e . pytest
+python3 -m pytest
+python3 -m py_compile src/fads/*.py
+```
+
+The repository CI runs the non-privileged unit suite. The privileged `scripts/user-test.sh` test is intentionally run on a real user-test Linux host because hosted CI does not represent the target host trust boundary.

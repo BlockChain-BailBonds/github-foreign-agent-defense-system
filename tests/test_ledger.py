@@ -1,25 +1,14 @@
-from __future__ import annotations
+import json, pytest
+from pathlib import Path
+from fads.ledger import EvidenceLedger, LedgerError
 
-import json
+def test_hash_chain_and_signed_head(tmp_path: Path):
+    l=EvidenceLedger(tmp_path/'evidence',b'test-key'); l.append({'event':'ONE'}); l.append({'event':'TWO'}); assert l.verify()['records']==2
 
-import pytest
+def test_event_tamper_detected(tmp_path: Path):
+    l=EvidenceLedger(tmp_path/'evidence'); l.append({'event':'ONE'}); p=tmp_path/'evidence'/'events.jsonl'; r=json.loads(p.read_text()); r['event']='ALTERED'; p.write_text(json.dumps(r)+'\n')
+    with pytest.raises(LedgerError): l.verify()
 
-from fads.ledger import LedgerError
-
-
-def test_ledger_chain_verifies(system):
-    _, _, _, _, ledger = system
-    ledger.append("TEST_EVENT", value=1)
-    assert ledger.verify() == 2
-
-
-def test_ledger_tampering_detected(system):
-    _, _, _, _, ledger = system
-    ledger.append("TEST_EVENT", value=1)
-    lines = ledger.path.read_text().splitlines()
-    record = json.loads(lines[0])
-    record["pid"] = 999999
-    lines[0] = json.dumps(record)
-    ledger.path.write_text("\n".join(lines) + "\n")
-    with pytest.raises(LedgerError, match="tampered record"):
-        ledger.verify()
+def test_truncation_detected(tmp_path: Path):
+    l=EvidenceLedger(tmp_path/'evidence'); l.append({'event':'ONE'}); l.append({'event':'TWO'}); p=tmp_path/'evidence'/'events.jsonl'; p.write_text(p.read_text().splitlines()[0]+'\n')
+    with pytest.raises(LedgerError): l.verify()
