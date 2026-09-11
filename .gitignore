@@ -1,0 +1,4 @@
+run/
+evidence/events.log
+*.sock
+*.tmp

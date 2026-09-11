@@ -1,0 +1,38 @@
+states:
+  trusted:
+    read_workspace: true
+    write_project: true
+    execute: true
+    spawn_process: true
+    network: policy
+    credentials: policy
+    external_tools: policy
+  restricted:
+    read_workspace: true
+    write_project: false
+    execute: limited
+    spawn_process: false
+    network: false
+    credentials: false
+    external_tools: false
+  quarantined:
+    read_workspace: true
+    write_project: false
+    execute: false
+    spawn_process: false
+    network: false
+    credentials: false
+    external_tools: false
+
+responses:
+  valid_heartbeat: continue
+  missed_heartbeats: restricted
+  geofence_breach: quarantined
+  unknown_child_process: restricted
+  unauthorized_executable: quarantined
+  identity_hash_mismatch: quarantined
+  unauthorized_network_request: deny_and_restricted
+  guardian_tamper: terminated
+  policy_tamper: quarantined
+  session_replay: quarantined
+  valid_agent_restart: new_session

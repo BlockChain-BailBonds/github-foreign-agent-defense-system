@@ -1,0 +1,24 @@
+agent_id: agent-0042
+
+identity:
+  executable_hash: sha256:ABC123
+  model_hash: sha256:DEF456
+
+sandbox:
+  root: /agents/agent-0042
+  workspace: /agents/agent-0042/workspace
+
+allowed:
+  read: true
+  write: true
+  execute: true
+  spawn: true
+  network: false
+  secrets: false
+
+allowed_executables:
+  - python3
+  - git
+  - pytest
+
+heartbeat_seconds: 2
