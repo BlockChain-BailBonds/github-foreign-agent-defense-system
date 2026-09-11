@@ -1,16 +1,17 @@
+version: 1
 states:
   trusted:
     read_workspace: true
     write_project: true
     execute: true
     spawn_process: true
-    network: policy
-    credentials: policy
-    external_tools: policy
+    network: false
+    credentials: false
+    external_tools: false
   restricted:
     read_workspace: true
     write_project: false
-    execute: limited
+    execute: false
     spawn_process: false
     network: false
     credentials: false
@@ -23,16 +24,38 @@ states:
     network: false
     credentials: false
     external_tools: false
+  terminated:
+    read_workspace: false
+    write_project: false
+    execute: false
+    spawn_process: false
+    network: false
+    credentials: false
+    external_tools: false
 
 responses:
-  valid_heartbeat: continue
   missed_heartbeats: restricted
   geofence_breach: quarantined
-  unknown_child_process: restricted
+  foreign_process: restricted
   unauthorized_executable: quarantined
   identity_hash_mismatch: quarantined
-  unauthorized_network_request: deny_and_restricted
+  unauthorized_network_request: restricted
   guardian_tamper: terminated
-  policy_tamper: quarantined
+  policy_tamper: terminated
+  manifest_tamper: terminated
   session_replay: quarantined
-  valid_agent_restart: new_session
+
+runtime:
+  missed_heartbeat_limit: 3
+  monitor_interval_seconds: 1
+  max_request_bytes: 1048576
+
+sandbox:
+  require_linux: true
+  require_bwrap: true
+  require_systemd: true
+  require_cgroup_v2: true
+  require_seccomp: true
+  default_memory_max: 1073741824
+  default_tasks_max: 128
+  default_cpu_quota_percent: 200

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fads-guardian"
+version = "0.1.0"
+description = "Standalone Foreign Agent Defense System Guardian for Linux"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+fads = "fads.cli:main"
+fads-guardian = "fads.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
