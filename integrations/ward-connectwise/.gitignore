@@ -1,0 +1,8 @@
+ward-snapshot*.json
+ward-report*.json
+ward-report*.md
+ward-delta*.json
+ward-delta*.md
+ward-containment-audit*.json
+__pycache__/
+.pytest_cache/
