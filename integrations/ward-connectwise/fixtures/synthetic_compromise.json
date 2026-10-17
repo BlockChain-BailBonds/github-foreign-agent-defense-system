@@ -1,0 +1,27 @@
+{
+  "schema": "ward-entra-incident-v1",
+  "tenantId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "collectedAt": "2026-10-17T01:00:00Z",
+  "sinceUtc": "2026-10-13T00:00:00Z",
+  "source": "SYNTHETIC TEST DATA ONLY",
+  "servicePrincipals": [
+    {"id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "appId": "24205314-2b89-4e07-a2a4-579e898a5640", "displayName": "ConnectWise Cloud Management - MS Teams", "accountEnabled": true, "passwordCredentials": [], "keyCredentials": []},
+    {"id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "appId": "506e08f9-6e9a-4da4-942b-a099a03644ae", "displayName": "ConnectWise Cloud Backup", "accountEnabled": true, "passwordCredentials": [], "keyCredentials": []}
+  ],
+  "applications": [{"id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "appId": "00000000-0000-4000-8000-000000000001", "displayName": "Example partner security agent", "passwordCredentials": [{"keyId":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","startDateTime":"2026-10-15T03:50:00Z","endDateTime":"2028-10-15T00:00:00Z"}], "keyCredentials": []}],
+  "signIns": [{"id": "sign-in-001", "createdDateTime": "2026-10-15T06:15:00Z", "appId": "506e08f9-6e9a-4da4-942b-a099a03644ae", "ipAddress": "144.172.64.128", "status": {"errorCode": 0}, "signInEventTypes": ["servicePrincipal"]}],
+  "directoryAudits": [
+    {"id": "audit-role-001", "activityDateTime": "2026-10-15T03:44:00Z", "activityDisplayName": "Add member to role", "initiatedBy": {"app": {"appId": "24205314-2b89-4e07-a2a4-579e898a5640", "displayName": "ConnectWise Cloud Management - MS Teams"}}, "targetResources": [{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","displayName":"Global Administrator"}], "additionalDetails": [{"key":"User-Agent","value":"kiota-dotnet"}]},
+    {"id": "audit-cred-001", "activityDateTime": "2026-10-15T03:47:00Z", "activityDisplayName": "Update application", "initiatedBy": {"app": {"appId": "24205314-2b89-4e07-a2a4-579e898a5640"}}, "targetResources": [{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","displayName":"Example partner security agent","modifiedProperties":[{"displayName":"PasswordCredentials","oldValue":"[]","newValue":"new credential metadata"}]}], "additionalDetails": [{"key":"User-Agent","value":"Python-urllib/3.12"}]}
+  ],
+  "roleAssignments": [{"id":"assignment-001", "principalId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "roleDefinitionId":"ffffffff-ffff-4fff-8fff-ffffffffffff"}],
+  "roleDefinitions": [{"id":"ffffffff-ffff-4fff-8fff-ffffffffffff", "displayName":"Global Administrator"}],
+  "coverage": {
+    "servicePrincipals":{"complete":true},
+    "applications":{"complete":true},
+    "signIns":{"complete":true},
+    "directoryAudits":{"complete":true},
+    "roleAssignments":{"complete":true},
+    "roleDefinitions":{"complete":true}
+  }
+}
